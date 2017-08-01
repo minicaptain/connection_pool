@@ -1,0 +1,30 @@
+{
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "WLppb6+xLz+y20q+R/Sf73+OsB4=",
+			"path": "git.apache.org/thrift.git/lib/go/thrift",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "tkkoUnh6S3CNxfBd0/usIe426xU=",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "85b1699d505667d13f8ac4478c1debbf85d6c5de",
+			"revisionTime": "2017-06-08T22:14:41Z"
+		},
+		{
+			"checksumSHA1": "Q3kpo8Rc9Tlo6HTjiv65a4b6yM8=",
+			"path": "github.com/go-zoo/bone",
+			"revision": "1cb672cf9dbefa9a441499367ccd41a28f8b6baf",
+			"revisionTime": "2017-04-27T14:05:34Z"
+		},
+		{
+			"checksumSHA1": "GsCNKs0L0TKGSZP4muZhglMSv9I=",
+			"path": "github.com/samuel/go-zookeeper/zk",
+			"revision": "1d7be4effb13d2d908342d349d71a284a7542693",
+			"revisionTime": "2016-10-28T23:23:40Z"
+		}
+	],
+	"rootPath": "multi_connection_pool"
+}
