@@ -1,6 +1,8 @@
 # multi_connection_pool
 this project finished a multi connection pool for thrift , which can rebalance and keep alive
 you can initial the multi pool from server urls list just like this:   
+go get "github.com/minicaptain/multi_connection_pool/util"  
+then import the package:
 /****************************************************************/
 
 testPool := &util.MultiPool{  
