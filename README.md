@@ -1,42 +1,63 @@
 # multi_connection_pool
 this project finished a multi connection pool for thrift , which can rebalance and keep alive
-you can initial the multi pool from server urls list just like this:
+you can initial the multi pool from server urls list just like this:   
 /****************************************************************/
-testPool := &util.MultiPool{
-		SingleMaxActiveCount: 10,
-		SingleMaxIdleCount:  2,
-		IdleTimeOut:  time.Second * 5,
+
+testPool := &util.MultiPool{  
+		
+		SingleMaxActiveCount: 10,  
+		
+		SingleMaxIdleCount:  2,  
+		
+		IdleTimeOut:  time.Second * 5,  
+		
 		SingleFactory:func(server string, time.Second, 1) util.Factory {
-   },
-		Servers:             []string{srv1, srv2, srv3},
-	}
-	testPool.InitFromServerList()
+   },  
+   
+		Servers:             []string{srv1, srv2, srv3},  
+		
+	}  
+	
+	testPool.InitFromServerList()  
+	
 /****************************************************************/
-  params:
+  params:  
+  
   SingeMaxActiveCount: the single pool max active connection count, the multi pool total active connection count 
-  should be len(testPool.Servers) * testPool.SingleMaxActiveCount.
+  should be len(testPool.Servers) * testPool.SingleMaxActiveCount.  
   
-  SingleMaxIdleCount: the idle connection count, which control the max idle connection count of single pool.
+  SingleMaxIdleCount: the idle connection count, which control the max idle connection count of single pool.  
   
-  IdleTimeOut: the connection in idle list should be close after this duration.
+  IdleTimeOut: the connection in idle list should be close after this duration.  
   
-  SingleFactory: the factory produces conn.
+  SingleFactory: the factory produces conn.  
   
-  Servers: the server url list.
+  Servers: the server url list.  
   
-  Also you can create the multi connection pool from zk node, which keep balance through zk virtual node:
- /****************************************************************/
+  Also you can create the multi connection pool from zk node, which keep balance through zk virtual node:  
+  
+ /****************************************************************/  
+ 
  testConnPool = &util.MultiPool{
-		ZkServers:            []{127.0.0.1:2181, 127.0.0.2:2181},
-		ZkNode:               /test/servers,
-		SingleMaxActiveCount: 10,
-		SingleMaxIdleCount:   2,
-		IdleTimeOut:          time.Second * 5,
+		ZkServers:            []{127.0.0.1:2181, 127.0.0.2:2181},  
+		
+		ZkNode:               /test/servers,  
+		
+		SingleMaxActiveCount: 10,  
+		
+		SingleMaxIdleCount:   2,  
+		
+		IdleTimeOut:          time.Second * 5,  
+		
 		SingleFactory:        func(server string, time.Second, 1) util.Factory {
-   },
-		ZkSessionTimeout:     time.Second,
-	}
-	testConnPool.InitFromZkChildrenNode()
+   },  
+   
+		ZkSessionTimeout:     time.Second,  
+		
+	}  
+	
+	testConnPool.InitFromZkChildrenNode()  
+	
   /****************************************************************/
   
   
