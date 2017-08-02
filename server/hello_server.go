@@ -30,7 +30,6 @@ func (p *HelloServer) Init() {
 	p.server = thrift.NewTSimpleServer4(processor, serverTransport, transportFactory, protocolFactory)
 
 	//create zk node
-
 	f := func(conn *zk.Conn, node string, flag int32) error {
 		_, err := conn.Create(node, nil, flag, zk.WorldACL(zk.PermAll))
 		if err != nil {
@@ -51,7 +50,7 @@ func (p *HelloServer) Init() {
 			if exist, _, _ := conn.Exists(p.ZkNode); !exist {
 				err := f(conn, p.ZkNode, int32(0))
 				if err != nil {
-					fmt.Printf("create parent node %s error :%s", p.ZkNode, err)
+					fmt.Printf("create parent node %s error :%s \n", p.ZkNode, err)
 					time.Sleep(time.Second * 3)
 					conn.Close()
 					continue
@@ -59,16 +58,14 @@ func (p *HelloServer) Init() {
 
 			}
 			if exist, _, _ := conn.Exists(node); !exist {
-				fmt.Println("come here")
 				err := f(conn, node, int32(zk.FlagEphemeral))
 				if err != nil {
-					fmt.Printf("create child node:%s error :%s", node, err)
+					fmt.Printf("create child node:%s error :%s \n", node, err)
 					time.Sleep(time.Second * 3)
 					conn.Close()
 					continue
 				}
 			}
-			fmt.Println("create childNode success")
 			return
 		}
 	}()
