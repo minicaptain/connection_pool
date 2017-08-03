@@ -68,4 +68,6 @@ testPool := &util.MultiPool{
 	
   /****************************************************************/
   
+  int the program finished a simple thirft server and thrift client pool.  
   
+
