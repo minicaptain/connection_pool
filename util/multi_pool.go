@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/Sirupsen/logrus"
 	"github.com/samuel/go-zookeeper/zk"
-	"sync"
 	"time"
 )
 
@@ -28,31 +27,33 @@ type MultiPool struct {
 	SingleMaxActiveCount int
 	IdleTimeOut          time.Duration
 	SingleFactory        func(server string, timeout time.Duration, tryCount int) Factory
-	mu                   sync.Mutex
+	ConnTimeout          time.Duration
+	ConnTryCount         int
+	closed               bool
 }
 
 func (p *MultiPool) Get() (Conn, string, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	server, err := p.ServerPool.GetServer()
-	serverName := server
-	if err != nil || server == "" {
-		return nil, serverName, errors.New("No Avalaible Server")
-	}
-	if v, ok := p.ConnPool[server]; ok {
-		conn, err := v.Get()
-		if err != nil {
-			p.ServerPool.ServerDown(server)
+	if !p.closed {
+		server, err := p.ServerPool.GetServer()
+		serverName := server
+		if err != nil || server == "" {
+			return nil, serverName, errors.New("No Avalaible Server")
 		}
-		return conn, serverName, err
+		if v, ok := p.ConnPool[server]; ok {
+			conn, err := v.Get()
+			if err != nil {
+				p.ServerPool.ServerDown(server)
+			}
+			return conn, serverName, err
+		} else {
+			p.ServerPool.ServerDown(server)
+			return nil, serverName, errors.New("Server does not exist in pool")
+		}
 	} else {
-		p.ServerPool.ServerDown(server)
-		return nil, serverName, errors.New("Server does not exist in pool")
+		return nil, "", errors.New("multi pool is closed")
 	}
 }
 func (p *MultiPool) Put(conn Conn, serverName string, forceClose bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if v, ok := p.ConnPool[serverName]; ok {
 		v.Put(conn, forceClose)
 	} else {
@@ -71,13 +72,11 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 	defer conn.Close()
 	p.ConnPool = map[string]*ConnPool{}
 	f := func(conn *zk.Conn) {
-		p.mu.Lock()
-		defer p.mu.Unlock()
 		servers, _, _ := conn.Children(p.ZkNode)
 		p.Servers = servers
 		p.ServerPool = NewServerPool(servers)
 		for _, server := range servers {
-			factory := p.SingleFactory(server, time.Second*1, 1)
+			factory := p.SingleFactory(server, p.ConnTimeout, p.ConnTryCount)
 			pool := &ConnPool{
 				MaxIdle:   p.SingleMaxIdleCount,
 				MaxActive: p.SingleMaxActiveCount,
@@ -111,16 +110,14 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 }
 
 func (p *MultiPool) InitFromServerList() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if len(p.Servers) == 0 {
 		logrus.Panic("servers should not be nil")
 		return
 	}
 	p.ServerPool = NewServerPool(p.Servers)
-	p.ConnPool = map[string]*ConnPool{}
+	connPool := map[string]*ConnPool{}
 	for _, server := range p.Servers {
-		factory := p.SingleFactory(server, time.Second*1, 1)
+		factory := p.SingleFactory(server, p.ConnTimeout, p.ConnTryCount)
 		pool := &ConnPool{
 			MaxIdle:   p.SingleMaxIdleCount,
 			MaxActive: p.SingleMaxActiveCount,
@@ -132,14 +129,13 @@ func (p *MultiPool) InitFromServerList() {
 			},
 			IdleTimeout: p.IdleTimeOut,
 		}
-		p.ConnPool[server] = pool
+		connPool[server] = pool
 	}
+	p.ConnPool = connPool
 }
 
 //TODO: close the multi server pool
 func (p *MultiPool) Close() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if len(p.Servers) == 0 {
 		return
 	}
@@ -148,7 +144,5 @@ func (p *MultiPool) Close() {
 			p.ConnPool[server].Close()
 		}(server)
 	}
-	p.Servers = nil
-	p.ConnPool = nil
-	p.ServerPool = nil
+	p.closed = true
 }
