@@ -17,7 +17,7 @@ type HelloServer struct {
 	ZkNode        string
 }
 
-func (p *HelloServer) Init() {
+func (p *HelloServer) Init() (event <-chan zk.Event) {
 	transportFactory := thrift.NewTTransportFactory()
 	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 	serverTransport, err := thrift.NewTServerSocket(p.ServerAddress)
@@ -66,10 +66,13 @@ func (p *HelloServer) Init() {
 					continue
 				}
 			}
+			_, _, event, _ = conn.ExistsW(node)
 			return
 		}
 	}()
+	return
 }
-func (p *HelloServer) Serve() error {
-	return p.server.Serve()
+func (p *HelloServer) Serve() (errChan chan error) {
+	errChan <- p.server.Serve()
+	return
 }

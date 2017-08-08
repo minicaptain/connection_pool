@@ -18,6 +18,10 @@ func main() {
 		ZkServers:     strings.Split(*zkServers, ","),
 		ZkNode:        *zkNode,
 	}
-	helloServer.Init()
-	helloServer.Serve()
+	select {
+	case <-helloServer.Init():
+		return
+	case <-helloServer.Serve():
+		return
+	}
 }

@@ -2,8 +2,10 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/samuel/go-zookeeper/zk"
+	"sync"
 	"time"
 )
 
@@ -30,6 +32,7 @@ type MultiPool struct {
 	ConnTimeout          time.Duration
 	ConnTryCount         int
 	closed               bool
+	mu                   sync.Mutex
 }
 
 func (p *MultiPool) Get() (Conn, string, error) {
@@ -66,15 +69,20 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 		logrus.Panic("[MultiPool.InitFromZk] should set the zk server address")
 	}
 	conn, _, err := zk.Connect(p.ZkServers, p.ZkSessionTimeout)
+	defer conn.Close()
 	if err != nil {
 		logrus.Panicf("[MultiPool.InitFromZk] connect to zk error: %s", err)
 	}
-	defer conn.Close()
 	p.ConnPool = map[string]*ConnPool{}
 	f := func(conn *zk.Conn) {
-		servers, _, _ := conn.Children(p.ZkNode)
+		servers, _, err := conn.Children(p.ZkNode)
+		if err != nil || len(servers) == 0 {
+			panic("no child")
+		}
 		p.Servers = servers
-		p.ServerPool = NewServerPool(servers)
+		fmt.Printf("[MultiPool.InitFromZk] children node list:%+v", servers)
+		serverPool := NewServerPool(servers)
+		connPool := map[string]*ConnPool{}
 		for _, server := range servers {
 			factory := p.SingleFactory(server, p.ConnTimeout, p.ConnTryCount)
 			pool := &ConnPool{
@@ -88,22 +96,31 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 				},
 				IdleTimeout: p.IdleTimeOut,
 			}
-			p.ConnPool[server] = pool
+			connPool[server] = pool
 		}
+		p.mu.Lock()
+		p.ServerPool = serverPool
+		p.ConnPool = connPool
+		p.mu.Unlock()
 	}
 	f(conn)
 	go func() {
 		for {
 			func() {
-				c, _, _ := zk.Connect(p.ZkServers, p.ZkSessionTimeout)
-				defer c.Close()
-				_, _, watchEvent, _ := c.ChildrenW(p.ZkNode)
-				select {
-				case event := <-watchEvent:
-					if event.Type == zk.EventNodeChildrenChanged {
-						f(c)
-					}
+				conn, _, err := zk.Connect(p.ZkServers, p.ZkSessionTimeout)
+				defer conn.Close()
+				if err != nil {
+					time.Sleep(time.Second * 3)
+					return
 				}
+				_, _, watchEvent, err := conn.ChildrenW(p.ZkNode)
+				if err != nil {
+					time.Sleep(time.Second * 3)
+					return
+				}
+				f(conn)
+				<-watchEvent
+				fmt.Printf("[InitFromZkChildrenNode.watch] child node changed zkNode: %s", p.ZkNode)
 			}()
 		}
 	}()
@@ -114,7 +131,7 @@ func (p *MultiPool) InitFromServerList() {
 		logrus.Panic("servers should not be nil")
 		return
 	}
-	p.ServerPool = NewServerPool(p.Servers)
+	serverPool := NewServerPool(p.Servers)
 	connPool := map[string]*ConnPool{}
 	for _, server := range p.Servers {
 		factory := p.SingleFactory(server, p.ConnTimeout, p.ConnTryCount)
@@ -131,7 +148,10 @@ func (p *MultiPool) InitFromServerList() {
 		}
 		connPool[server] = pool
 	}
+	p.mu.Lock()
 	p.ConnPool = connPool
+	p.ServerPool = serverPool
+	p.mu.Unlock()
 }
 
 //TODO: close the multi server pool
