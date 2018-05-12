@@ -32,6 +32,7 @@ type MultiPool struct {
 	ConnTimeout          time.Duration
 	ConnTryCount         int
 	closed               bool
+	zkLoadBalance        bool
 	mu                   sync.Mutex
 }
 
@@ -44,23 +45,63 @@ func (p *MultiPool) Get() (Conn, string, error) {
 		}
 		if v, ok := p.ConnPool[server]; ok {
 			conn, err := v.Get()
-			if err != nil {
+			if err != nil && !p.zkLoadBalance {
 				p.ServerPool.ServerDown(server)
 			}
 			return conn, serverName, err
 		} else {
-			p.ServerPool.ServerDown(server)
+			if !p.zkLoadBalance {
+				p.ServerPool.ServerDown(server)
+			}
 			return nil, serverName, errors.New("Server does not exist in pool")
 		}
 	} else {
 		return nil, "", errors.New("multi pool is closed")
 	}
 }
+
+func (p *MultiPool) GetThroughConsistentHash(key string) (Conn, string, error) {
+	if !p.closed {
+		server, err := p.ServerPool.GetServerFromConsistentHashAlgorithm(key)
+		serverName := server
+		if err != nil || server == "" {
+			return nil, serverName, errors.New("No Avalaible Server")
+		}
+		if v, ok := p.ConnPool[server]; ok {
+			conn, err := v.Get()
+			if err != nil && !p.zkLoadBalance {
+				p.ServerPool.ServerDown(server)
+			}
+			return conn, serverName, err
+		} else {
+			if !p.zkLoadBalance {
+				p.ServerPool.ServerDown(server)
+			}
+			return nil, serverName, errors.New("Server does not exist in pool")
+		}
+	} else {
+		return nil, "", errors.New("multi pool is closed")
+	}
+}
+
 func (p *MultiPool) Put(conn Conn, serverName string, forceClose bool) {
 	if v, ok := p.ConnPool[serverName]; ok {
 		v.Put(conn, forceClose)
 	} else {
 		logrus.Infof("[MultiPool.Put] no server pool for %s", serverName)
+	}
+}
+
+func (p *MultiPool) GetServerConn(server string) (Conn, string, error) {
+	if v, ok := p.ConnPool[server]; ok {
+		conn, err := v.Get()
+		if err != nil {
+			p.ServerPool.ServerDown(server)
+		}
+		return conn, server, err
+	} else {
+		p.ServerPool.ServerDown(server)
+		return nil, server, errors.New("Server does not exist in pool")
 	}
 }
 
@@ -77,10 +118,11 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 	f := func(conn *zk.Conn) {
 		servers, _, err := conn.Children(p.ZkNode)
 		if err != nil || len(servers) == 0 {
-			panic("no child")
+			logrus.Errorf("no child error:%s", err)
+			return
 		}
 		p.Servers = servers
-		fmt.Printf("[MultiPool.InitFromZk] children node list:%+v", servers)
+		fmt.Printf("[MultiPool.InitFromZk] children node list:%+v  time:%s \n", servers, time.Now())
 		serverPool := NewServerPool(servers)
 		connPool := map[string]*ConnPool{}
 		for _, server := range servers {
@@ -101,6 +143,7 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 		p.mu.Lock()
 		p.ServerPool = serverPool
 		p.ConnPool = connPool
+		p.zkLoadBalance = true
 		p.mu.Unlock()
 	}
 	f(conn)
@@ -120,7 +163,7 @@ func (p *MultiPool) InitFromZkChildrenNode() {
 				}
 				f(conn)
 				<-watchEvent
-				fmt.Printf("[InitFromZkChildrenNode.watch] child node changed zkNode: %s", p.ZkNode)
+				fmt.Printf("[InitFromZkChildrenNode.watch] child node changed zkNode: %s time: %s \n", p.ZkNode, time.Now())
 			}()
 		}
 	}()
@@ -148,10 +191,9 @@ func (p *MultiPool) InitFromServerList() {
 		}
 		connPool[server] = pool
 	}
-	p.mu.Lock()
 	p.ConnPool = connPool
 	p.ServerPool = serverPool
-	p.mu.Unlock()
+	p.zkLoadBalance = false
 }
 
 //TODO: close the multi server pool
