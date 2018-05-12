@@ -1,11 +1,11 @@
 package client
 
 import (
+	"connection_pool/connection_pool"
+	"connection_pool/thrift/gen-go/hello"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	log "github.com/Sirupsen/logrus"
 	"io"
-	"multi_connection_pool/thrift/gen-go/hello"
-	"multi_connection_pool/util"
 	"net"
 	"time"
 )
@@ -25,7 +25,7 @@ type HelloClientConnectionFactory struct {
 	tryCount      int
 }
 
-func NewHelloClientConnectionFactory(server string, timeout time.Duration, tryCount int) util.Factory {
+func NewHelloClientConnectionFactory(server string, timeout time.Duration, tryCount int) connection_pool.Factory {
 	return &HelloClientConnectionFactory{
 		ServerAddress: server,
 		timeout:       timeout,
@@ -33,7 +33,7 @@ func NewHelloClientConnectionFactory(server string, timeout time.Duration, tryCo
 	}
 }
 
-func (p *HelloClientConnectionFactory) NewConnection() (util.Conn, error) {
+func (p *HelloClientConnectionFactory) NewConnection() (connection_pool.Conn, error) {
 	pClient := HelloClientConnection{
 		tryCount:      p.tryCount,
 		ServerAddress: p.ServerAddress,

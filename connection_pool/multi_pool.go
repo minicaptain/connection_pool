@@ -1,4 +1,4 @@
-package util
+package connection_pool
 
 import (
 	"errors"

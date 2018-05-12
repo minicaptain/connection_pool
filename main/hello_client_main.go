@@ -1,8 +1,8 @@
 package main
 
 import (
+	"connection_pool/handler"
 	"github.com/go-zoo/bone"
-	"multi_connection_pool/handler"
 	"net/http"
 	"runtime"
 	"time"

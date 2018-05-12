@@ -1,20 +1,20 @@
 package handler
 
 import (
+	"connection_pool/client"
+	"connection_pool/connection_pool"
 	"fmt"
 	"github.com/go-zoo/bone"
-	"multi_connection_pool/client"
-	"multi_connection_pool/util"
 	"net/http"
 	"time"
 )
 
 type HelloClientHandler struct {
-	connPool *util.MultiPool
+	connPool *connection_pool.MultiPool
 }
 
 func (p *HelloClientHandler) Init() {
-	p.connPool = &util.MultiPool{
+	p.connPool = &connection_pool.MultiPool{
 		SingleFactory:        client.NewHelloClientConnectionFactory,
 		SingleMaxIdleCount:   2,
 		SingleMaxActiveCount: 10,

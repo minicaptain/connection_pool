@@ -1,11 +1,11 @@
 package server
 
 import (
+	"connection_pool/handler"
+	"connection_pool/thrift/gen-go/hello"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"github.com/samuel/go-zookeeper/zk"
-	"multi_connection_pool/handler"
-	"multi_connection_pool/thrift/gen-go/hello"
 	"time"
 )
 

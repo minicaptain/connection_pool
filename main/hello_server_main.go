@@ -1,8 +1,8 @@
 package main
 
 import (
+	"connection_pool/server"
 	"flag"
-	"multi_connection_pool/server"
 	"runtime"
 	"strings"
 )
