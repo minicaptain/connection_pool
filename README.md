@@ -2,11 +2,11 @@
 this project finished a multi connection pool for thrift,http or other protocals , which can rebalance and keep alive
 you can initial the multi pool from server urls list just like this:   
 
-go get "github.com/minicaptain/multi_connection_pool/util"  
+go get "github.com/minicaptain/connection_pool/connection_pool"  
 
 then import the package:
 
-import "github.com/minicaptain/multi_connection_pool/util"  
+import "github.com/minicaptain/connection_pool/connection_pool"  
 
 
 /****************************************************************/
